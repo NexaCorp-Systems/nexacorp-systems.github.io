@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NETSHADE — DIRECTOR PORTAL</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Rajdhani:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --neon-cyan: #00f5ff;
+    --neon-pink: #ff006e;
+    --neon-yellow: #ffe600;
+    --neon-green: #39ff14;
+    --dark-bg: #020408;
+    --grid-color: rgba(0, 245, 255, 0.06);
+    --panel-bg: rgba(0, 10, 20, 0.85);
+    --border-glow: rgba(0, 245, 255, 0.3);
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--dark-bg);
+    color: #c8d8e8;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 16px;
+    overflow-x: hidden;
+    cursor: crosshair;
+    min-height: 100vh;
+  }
+
+  /* SCANLINES OVERLAY */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0, 0, 0, 0.15) 2px,
+      rgba(0, 0, 0, 0.15) 4px
+    );
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  /* GRID BG */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(var(--grid-color) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── LOGIN SCREEN ──────────────────────────────────────── */
+  #login-screen {
+    position: fixed;
+    inset: 0;
+    z-index: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--dark-bg);
+  }
+
+  #login-screen.hidden {
+    display: none;
+  }
+
+  #login-box {
+    width: min(480px, 92vw);
+    background: #000;
+    border: 1px solid rgba(0, 245, 255, 0.25);
+    position: relative;
+    overflow: hidden;
+    animation: modal-in 0.45s cubic-bezier(0.2, 0, 0, 1);
+  }
+
+  @keyframes modal-in {
+    from { opacity: 0; transform: translateY(-20px) scale(0.97); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  /* top bar */
+  .login-topbar {
+    background: rgba(0, 245, 255, 0.07);
+    border-bottom: 1px solid rgba(0, 245, 255, 0.15);
+    padding: 0.75rem 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .login-topbar span {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.65rem;
+    color: rgba(0, 245, 255, 0.6);
+    letter-spacing: 0.2em;
+  }
+
+  /* corner decorations */
+  .corner-tl, .corner-tr, .corner-bl, .corner-br {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+  }
+  .corner-tl { top: 44px; left: 0;  border-top: 2px solid var(--neon-cyan); border-left:  2px solid var(--neon-cyan); }
+  .corner-tr { top: 44px; right: 0; border-top: 2px solid var(--neon-cyan); border-right: 2px solid var(--neon-cyan); }
+  .corner-bl { bottom: 0; left: 0;  border-bottom: 2px solid rgba(255,0,110,0.5); border-left:  2px solid rgba(255,0,110,0.5); }
+  .corner-br { bottom: 0; right: 0; border-bottom: 2px solid rgba(255,0,110,0.5); border-right: 2px solid rgba(255,0,110,0.5); }
+
+  .login-body { padding: 2rem 2rem 1.5rem; }
+
+  .login-logo {
+    text-align: center;
+    margin-bottom: 1.8rem;
+  }
+  .login-logo-text {
+    font-family: 'Orbitron', monospace;
+    font-weight: 900;
+    font-size: 1.6rem;
+    color: var(--neon-cyan);
+    text-shadow: 0 0 20px var(--neon-cyan), 0 0 40px rgba(0,245,255,0.3);
+    letter-spacing: 0.2em;
+  }
+  .login-logo-text span {
+    color: var(--neon-pink);
+    text-shadow: 0 0 20px var(--neon-pink);
+  }
+  .login-logo-sub {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.6rem;
+    color: rgba(200, 220, 240, 0.3);
+    letter-spacing: 0.25em;
+    margin-top: 0.4rem;
+  }
+
+  #boot-lines {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.68rem;
+    line-height: 1.9;
+    color: rgba(0, 245, 255, 0.45);
+    margin-bottom: 1.5rem;
+    min-height: 80px;
+  }
+
+  #login-fields { display: none; animation: fields-in 0.3s ease; }
+  @keyframes fields-in { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+
+  .field-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.6rem;
+    color: rgba(200, 220, 240, 0.35);
+    letter-spacing: 0.2em;
+    margin-bottom: 0.4rem;
+  }
+
+  .field-input {
+    width: 100%;
+    background: rgba(0, 245, 255, 0.04);
+    border: 1px solid rgba(0, 245, 255, 0.2);
+    color: #fff;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.8rem;
+    letter-spacing: 0.1em;
+    padding: 0.75rem 1rem;
+    outline: none;
+    transition: border-color 0.3s;
+    margin-bottom: 1rem;
+  }
+  .field-input:focus { border-color: rgba(0, 245, 255, 0.6); }
+  .field-input::placeholder { color: rgba(200, 220, 240, 0.2); }
+
+  #login-btn {
+    width: 100%;
+    background: var(--neon-cyan);
+    border: none;
+    color: #000;
+    font-family: 'Orbitron', monospace;
+    font-weight: 700;
+    font-size: 0.7rem;
+    letter-spacing: 0.2em;
+    padding: 1rem;
+    cursor: crosshair;
+    clip-path: polygon(10px 0%, 100% 0%, calc(100% - 10px) 100%, 0% 100%);
+    transition: box-shadow 0.3s, background 0.3s;
+    text-transform: uppercase;
+  }
+  #login-btn:hover { box-shadow: 0 0 30px var(--neon-cyan); }
+
+  #login-error {
+    display: none;
+    margin-top: 1rem;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--neon-pink);
+    text-align: center;
+    letter-spacing: 0.1em;
+    text-shadow: 0 0 10px rgba(255,0,110,0.5);
+  }
+
+  .login-disclaimer {
+    margin-top: 1.2rem;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.58rem;
+    color: rgba(200, 220, 240, 0.18);
+    text-align: center;
+    line-height: 1.7;
+    letter-spacing: 0.05em;
+  }
+
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    20%      { transform: translateX(-8px); }
+    40%      { transform: translateX(8px); }
+    60%      { transform: translateX(-6px); }
+    80%      { transform: translateX(6px); }
+  }
+
+  /* ── DASHBOARD PAGE ────────────────────────────────────── */
+  #dashboard-page {
+    display: none;
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
+    overflow-y: auto;
+  }
+  #dashboard-page.open {
+    display: block;
+    animation: dash-in 0.5s ease;
+  }
+  @keyframes dash-in { from { opacity:0; } to { opacity:1; } }
+
+  /* DASH NAV */
+  .dash-nav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(2, 4, 8, 0.95);
+    border-bottom: 1px solid rgba(0, 245, 255, 0.2);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.9rem 2rem;
+  }
+
+  .dash-nav-left { display: flex; align-items: center; gap: 2rem; }
+
+  .dash-logo {
+    font-family: 'Orbitron', monospace;
+    font-weight: 900;
+    font-size: 1.1rem;
+    color: var(--neon-cyan);
+    text-shadow: 0 0 15px var(--neon-cyan);
+    letter-spacing: 0.15em;
+  }
+  .dash-logo span { color: var(--neon-pink); }
+
+  .dash-nav-subtitle {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.6rem;
+    color: rgba(200, 220, 240, 0.3);
+    letter-spacing: 0.2em;
+    border-left: 1px solid rgba(0, 245, 255, 0.15);
+    padding-left: 1.5rem;
+  }
+
+  .dash-nav-right { display: flex; align-items: center; gap: 1.5rem; }
+
+  .session-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .session-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--neon-green);
+    box-shadow: 0 0 8px var(--neon-green);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+
+  .session-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.6rem;
+    color: rgba(200, 220, 240, 0.4);
+    letter-spacing: 0.1em;
+  }
+
+  .logout-btn {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.6rem;
+    color: rgba(255, 0, 110, 0.5);
+    background: none;
+    border: 1px solid rgba(255, 0, 110, 0.2);
+    padding: 0.4rem 1rem;
+    cursor: crosshair;
+    letter-spacing: 0.1em;
+    transition: all 0.2s;
+  }
+  .logout-btn:hover {
+    color: #ff006e;
+    border-color: #ff006e;
+    box-shadow: 0 0 10px rgba(255, 0, 110, 0.3);
+  }
+
+  /* DASH CONTENT */
+  .dash-content {
+    position: relative;
+    z-index: 1;
+    max-width: 1300px;
+    margin: 0 auto;
+    padding: 2rem;
+  }
+
+  /* Welcome */
+  .dash-welcome {
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid rgba(0, 245, 255, 0.1);
+  }
+  .dash-welcome-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.6rem;
+    color: var(--neon-pink);
+    letter-spacing: 0.3em;
+    margin-bottom: 0.4rem;
+  }
+  .dash-welcome-title {
+    font-family: 'Orbitron', monospace;
+    font-size: 1.8rem;
+    font-weight: 900;
+    color: #fff;
+    letter-spacing: 0.05em;
+  }
+  .dash-date {
+    font-size: 0.9rem;
+    color: rgba(200, 220, 240, 0.3);
+    font-weight: 400;
+  }
+
+  /* KPI GRID */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: rgba(0, 245, 255, 0.08);
+    border: 1px solid rgba(0, 245, 255, 0.08);
+    margin-bottom: 2rem;
+  }
+
+  .kpi-card {
+    background: #000;
+    padding: 1.5rem;
+    position: relative;
+    overflow: hidden;
+    transition: background 0.3s;
+  }
+  .kpi-card:hover { background: rgba(0, 245, 255, 0.04); }
+
+  .kpi-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.58rem;
+    color: rgba(200, 220, 240, 0.35);
+    letter-spacing: 0.2em;
+    margin-bottom: 0.6rem;
+  }
+  .kpi-value {
+    font-family: 'Orbitron', monospace;
+    font-size: 2rem;
+    font-weight: 900;
+    color: var(--neon-cyan);
+    text-shadow: 0 0 15px rgba(0, 245, 255, 0.4);
+  }
+  .kpi-value.danger {
+    color: var(--neon-pink);
+    text-shadow: 0 0 15px rgba(255, 0, 110, 0.4);
+  }
+  .kpi-delta {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.58rem;
+    color: var(--neon-green);
+    margin-top: 0.4rem;
+  }
+  .kpi-delta.warn { color: var(--neon-pink); }
+  .kpi-bar {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--neon-cyan), transparent);
+  }
+  .kpi-bar.danger { background: linear-gradient(90deg, var(--neon-pink), transparent); }
+
+  /* MAIN GRID */
+  .main-grid {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .panel {
+    background: #000;
+    border: 1px solid rgba(0, 245, 255, 0.12);
+    padding: 1.5rem;
+  }
+
+  .panel-header {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.6rem;
+    color: rgba(200, 220, 240, 0.35);
+    letter-spacing: 0.2em;
+    margin-bottom: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .live-badge { color: var(--neon-green); }
+  .threat-badge { color: var(--neon-pink); }
+
+  /* MAP */
+  .map-wrap {
+    background: rgba(0, 245, 255, 0.02);
+    border: 1px solid rgba(0, 245, 255, 0.06);
+    overflow: hidden;
+  }
+  .map-legend {
+    display: flex;
+    gap: 1.5rem;
+    margin-top: 0.8rem;
+  }
+  .map-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.58rem;
+    color: rgba(200, 220, 240, 0.35);
+  }
+  .legend-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+  }
+
+  /* INCIDENT LOG */
+  .incident-feed {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+  .incident-item {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.6rem;
+    line-height: 1.6;
+    padding: 0.6rem;
+    background: rgba(0, 245, 255, 0.02);
+    border-left: 2px solid rgba(0, 245, 255, 0.2);
+  }
+  .incident-item.threat {
+    border-left-color: var(--neon-pink);
+    background: rgba(255, 0, 110, 0.04);
+  }
+  .incident-time { color: rgba(200, 220, 240, 0.3); }
+
+  /* BOTTOM ROW */
+  .bottom-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1.5rem;
+  }
+
+  /* Division status bars */
+  .div-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.8rem;
+  }
+  .div-row:last-child { margin-bottom: 0; }
+  .div-name {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.65rem;
+    color: rgba(200, 220, 240, 0.6);
+  }
+  .div-bar-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .div-bar-track {
+    width: 80px;
+    height: 3px;
+    background: rgba(0, 245, 255, 0.1);
+    position: relative;
+  }
+  .div-bar-fill {
+    position: absolute;
+    inset: 0;
+    background: var(--neon-cyan);
+  }
+  .div-bar-fill.danger { background: var(--neon-pink); }
+  .div-pct {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.55rem;
+    color: var(--neon-green);
+  }
+  .div-pct.danger { color: var(--neon-pink); }
+
+  /* Action buttons */
+  .action-btn {
+    width: 100%;
+    background: rgba(0, 245, 255, 0.05);
+    border: 1px solid rgba(0, 245, 255, 0.15);
+    color: rgba(200, 220, 240, 0.7);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.1em;
+    padding: 0.7rem 1rem;
+    cursor: crosshair;
+    text-align: left;
+    transition: all 0.2s;
+    clip-path: polygon(8px 0%, 100% 0%, calc(100% - 8px) 100%, 0% 100%);
+    margin-bottom: 0.6rem;
+  }
+  .action-btn:hover {
+    background: rgba(0, 245, 255, 0.1);
+    color: #fff;
+  }
+  .action-btn.danger-btn {
+    background: rgba(255, 0, 110, 0.05);
+    border-color: rgba(255, 0, 110, 0.15);
+  }
+  .action-btn.danger-btn:hover {
+    background: rgba(255, 0, 110, 0.1);
+    color: #fff;
+  }
+  .action-btn:last-of-type { margin-bottom: 0; }
+
+  #action-feedback {
+    display: none;
+    margin-top: 0.8rem;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.6rem;
+    color: var(--neon-green);
+    letter-spacing: 0.05em;
+    border-top: 1px solid rgba(0, 245, 255, 0.1);
+    padding-top: 0.8rem;
+    animation: fields-in 0.3s ease;
+  }
+
+  /* Compliance chart container */
+  .compliance-note {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.55rem;
+    color: rgba(255, 0, 110, 0.6);
+    margin-top: 0.5rem;
+  }
+
+  /* Incident log panel as flex column */
+  .panel.incident-panel {
+    display: flex;
+    flex-direction: column;
+  }
+
+  @media (max-width: 1000px) {
+    .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    .main-grid { grid-template-columns: 1fr; }
+    .bottom-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     LOGIN SCREEN
+     ============================================================ -->
+<div id="login-screen">
+  <div id="login-box">
+
+    <div class="login-topbar">
+      <span>NETSHADE // SECURE ACCESS TERMINAL</span>
+    </div>
+
+    <div class="corner-tl"></div>
+    <div class="corner-tr"></div>
+    <div class="corner-bl"></div>
+    <div class="corner-br"></div>
+
+    <div class="login-body">
+      <div class="login-logo">
+        <div class="login-logo-text">NET<span>SHADE</span></div>
+        <div class="login-logo-sub">EMPLOYEE PORTAL — CLEARANCE REQUIRED</div>
+      </div>
+
+      <div id="boot-lines"></div>
+
+      <div id="login-fields">
+        <div class="field-label">IDENTITY_TOKEN</div>
+        <input id="login-user" class="field-input" type="text" autocomplete="off" placeholder="director@netshade.ai">
+
+        <div class="field-label">AUTHORIZATION_KEY</div>
+        <input id="login-pass" class="field-input" type="password" autocomplete="off" placeholder="••••••••••••"
+          onkeydown="if(event.key==='Enter')attemptLogin()">
+
+        <button id="login-btn" onclick="attemptLogin()">Authenticate</button>
+
+        <div id="login-error"></div>
+
+        <div class="login-disclaimer">
+          All access attempts are logged, timestamped, and reported<br>
+          to NetShade Forecast Security. Unauthorized access triggers<br>
+          immediate identity quarantine.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     DASHBOARD PAGE
+     ============================================================ -->
+<div id="dashboard-page">
+
+  <!-- DASH NAV -->
+  <div class="dash-nav">
+    <div class="dash-nav-left">
+      <div class="dash-logo">NET<span>SHADE</span></div>
+      <div class="dash-nav-subtitle">DIRECTOR PORTAL — LEVEL SIGMA</div>
+    </div>
+    <div class="dash-nav-right">
+      <div class="session-indicator">
+        <div class="session-dot"></div>
+        <span class="session-label">SECURE SESSION ACTIVE</span>
+      </div>
+      <button class="logout-btn" onclick="logout()">TERMINATE SESSION</button>
+    </div>
+  </div>
+
+  <!-- DASH CONTENT -->
+  <div class="dash-content">
+
+    <!-- Welcome -->
+    <div class="dash-welcome">
+      <div class="dash-welcome-label">WELCOME BACK, DIRECTOR</div>
+      <h1 class="dash-welcome-title">Command Overview <span class="dash-date" id="dash-date"></span></h1>
+    </div>
+
+    <!-- KPI CARDS -->
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-label">GLOBAL MARKET SHARE</div>
+        <div class="kpi-value">99.4%</div>
+        <div class="kpi-delta">▲ +0.3% THIS CYCLE</div>
+        <div class="kpi-bar"></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">REVENUE (BILLIONS ₦)</div>
+        <div class="kpi-value">214.7</div>
+        <div class="kpi-delta">▲ +22B SINCE LAST REPORT</div>
+        <div class="kpi-bar"></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">THREAT INCIDENTS</div>
+        <div class="kpi-value danger">3</div>
+        <div class="kpi-delta warn">▼ 2 RESOLVED // 1 ACTIVE</div>
+        <div class="kpi-bar danger"></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">CITIZENS MONITORED</div>
+        <div class="kpi-value">847M</div>
+        <div class="kpi-delta">▲ +2.1M NEW ENROLLMENTS</div>
+        <div class="kpi-bar"></div>
+      </div>
+    </div>
+
+    <!-- MAIN GRID -->
+    <div class="main-grid">
+
+      <!-- SURVEILLANCE MAP -->
+      <div class="panel">
+        <div class="panel-header">
+          <span>GLOBAL SURVEILLANCE COVERAGE</span>
+          <span class="live-badge">● LIVE</span>
+        </div>
+        <div class="map-wrap">
+          <svg viewBox="0 0 700 320" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+            <!-- North America -->
+            <path d="M95,70 L160,65 L175,80 L190,90 L185,120 L170,150 L155,165 L140,155 L125,140 L110,120 L90,100 Z" fill="rgba(0,245,255,0.06)" stroke="rgba(0,245,255,0.25)" stroke-width="0.8"/>
+            <!-- South America -->
+            <path d="M155,185 L185,180 L195,200 L192,230 L180,265 L162,280 L148,265 L142,240 L145,210 Z" fill="rgba(0,245,255,0.06)" stroke="rgba(0,245,255,0.25)" stroke-width="0.8"/>
+            <!-- Europe -->
+            <path d="M295,55 L340,50 L355,65 L350,85 L330,95 L310,90 L295,80 Z" fill="rgba(0,245,255,0.06)" stroke="rgba(0,245,255,0.25)" stroke-width="0.8"/>
+            <!-- Africa -->
+            <path d="M295,110 L340,105 L360,130 L355,175 L340,210 L315,225 L295,210 L280,175 L278,145 L285,120 Z" fill="rgba(0,245,255,0.06)" stroke="rgba(0,245,255,0.25)" stroke-width="0.8"/>
+            <!-- Asia -->
+            <path d="M370,50 L490,45 L530,70 L535,110 L510,135 L470,140 L430,130 L395,115 L370,95 Z" fill="rgba(0,245,255,0.06)" stroke="rgba(0,245,255,0.25)" stroke-width="0.8"/>
+            <!-- Australia -->
+            <path d="M480,195 L530,190 L545,215 L535,240 L505,250 L480,235 L472,215 Z" fill="rgba(0,245,255,0.06)" stroke="rgba(0,245,255,0.25)" stroke-width="0.8"/>
+
+            <circle cx="350" cy="160" r="120" fill="none" stroke="rgba(0,245,255,0.04)" stroke-width="40"/>
+            <circle cx="350" cy="160" r="80"  fill="none" stroke="rgba(0,245,255,0.06)" stroke-width="1" stroke-dasharray="4,4"/>
+            <circle cx="350" cy="160" r="140" fill="none" stroke="rgba(0,245,255,0.06)" stroke-width="1" stroke-dasharray="4,4"/>
+
+            <!-- Surveillance nodes -->
+            <circle cx="135" cy="110" r="3" fill="var(--neon-cyan)" opacity="0.9"><animate attributeName="opacity" values="0.9;0.3;0.9" dur="2.1s" repeatCount="indefinite"/></circle>
+            <circle cx="165" cy="220" r="3" fill="var(--neon-cyan)" opacity="0.7"><animate attributeName="opacity" values="0.7;0.2;0.7" dur="1.8s" repeatCount="indefinite"/></circle>
+            <circle cx="315" cy="70"  r="3" fill="var(--neon-cyan)" opacity="0.9"><animate attributeName="opacity" values="0.9;0.4;0.9" dur="2.4s" repeatCount="indefinite"/></circle>
+            <circle cx="315" cy="165" r="3" fill="var(--neon-cyan)" opacity="0.8"><animate attributeName="opacity" values="0.8;0.3;0.8" dur="1.6s" repeatCount="indefinite"/></circle>
+            <circle cx="445" cy="90"  r="3" fill="var(--neon-cyan)" opacity="0.9"><animate attributeName="opacity" values="0.9;0.3;0.9" dur="2.2s" repeatCount="indefinite"/></circle>
+            <circle cx="500" cy="215" r="3" fill="var(--neon-cyan)" opacity="0.7"><animate attributeName="opacity" values="0.7;0.2;0.7" dur="3s"   repeatCount="indefinite"/></circle>
+            <!-- threat node -->
+            <circle cx="390" cy="120" r="4" fill="var(--neon-pink)" opacity="0.9"><animate attributeName="r" values="4;7;4" dur="1.5s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.9;0.5;0.9" dur="1.5s" repeatCount="indefinite"/></circle>
+            <circle cx="390" cy="120" r="12" fill="none" stroke="rgba(255,0,110,0.3)" stroke-width="1"><animate attributeName="r" values="8;18;8" dur="1.5s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.6;0;0.6" dur="1.5s" repeatCount="indefinite"/></circle>
+
+            <!-- connection lines -->
+            <line x1="135" y1="110" x2="315" y2="70"  stroke="rgba(0,245,255,0.12)" stroke-width="0.5"/>
+            <line x1="315" y1="70"  x2="445" y2="90"  stroke="rgba(0,245,255,0.12)" stroke-width="0.5"/>
+            <line x1="315" y1="165" x2="390" y2="120" stroke="rgba(255,0,110,0.2)"  stroke-width="0.5" stroke-dasharray="3,3"/>
+            <line x1="445" y1="90"  x2="500" y2="215" stroke="rgba(0,245,255,0.12)" stroke-width="0.5"/>
+
+            <text x="10" y="315" font-family="Share Tech Mono" font-size="9" fill="rgba(0,245,255,0.25)" letter-spacing="2">NS-PREDICT-GRID v4.7 // 340,000 ACTIVE NODES</text>
+          </svg>
+        </div>
+        <div class="map-legend">
+          <div class="map-legend-item"><div class="legend-dot" style="background:var(--neon-cyan);"></div>ACTIVE NODE</div>
+          <div class="map-legend-item"><div class="legend-dot" style="background:var(--neon-pink);"></div>THREAT DETECTED</div>
+        </div>
+      </div>
+
+      <!-- INCIDENT LOG -->
+      <div class="panel incident-panel">
+        <div class="panel-header">
+          <span>INCIDENT LOG</span>
+          <span class="threat-badge">1 ACTIVE</span>
+        </div>
+        <div class="incident-feed" id="incident-log"></div>
+      </div>
+    </div>
+
+    <!-- BOTTOM ROW -->
+    <div class="bottom-grid">
+
+      <!-- Division Status -->
+      <div class="panel">
+        <div class="panel-header"><span>DIVISION STATUS</span></div>
+        <div class="div-row">
+          <span class="div-name">COGNITIVE SYS.</span>
+          <div class="div-bar-wrap">
+            <div class="div-bar-track"><div class="div-bar-fill" style="right:0%"></div></div>
+            <span class="div-pct">100%</span>
+          </div>
+        </div>
+        <div class="div-row">
+          <span class="div-name">RESOURCE CMD.</span>
+          <div class="div-bar-wrap">
+            <div class="div-bar-track"><div class="div-bar-fill" style="right:10%"></div></div>
+            <span class="div-pct">90%</span>
+          </div>
+        </div>
+        <div class="div-row">
+          <span class="div-name">SOCIAL COMP.</span>
+          <div class="div-bar-wrap">
+            <div class="div-bar-track"><div class="div-bar-fill" style="right:3%"></div></div>
+            <span class="div-pct">97%</span>
+          </div>
+        </div>
+        <div class="div-row">
+          <span class="div-name">[CLASSIFIED]</span>
+          <div class="div-bar-wrap">
+            <div class="div-bar-track"><div class="div-bar-fill danger" style="right:0%"></div></div>
+            <span class="div-pct danger">???</span>
+          </div>
+        </div>
+        <div class="div-row">
+          <span class="div-name">AUTONOMOUS SEC.</span>
+          <div class="div-bar-wrap">
+            <div class="div-bar-track"><div class="div-bar-fill" style="right:5%"></div></div>
+            <span class="div-pct">95%</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Neural Compliance Chart -->
+      <div class="panel">
+        <div class="panel-header"><span>NEURAL COMPLIANCE BY SECTOR</span></div>
+        <svg viewBox="0 0 200 120" xmlns="http://www.w3.org/2000/svg" style="width:100%;">
+          <defs>
+            <linearGradient id="bar-grad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#00f5ff" stop-opacity="0.9"/>
+              <stop offset="100%" stop-color="#00f5ff" stop-opacity="0.2"/>
+            </linearGradient>
+          </defs>
+          <rect x="10"  y="25" width="22" height="85" fill="url(#bar-grad)" rx="1"/>
+          <rect x="42"  y="35" width="22" height="75" fill="url(#bar-grad)" rx="1" opacity="0.85"/>
+          <rect x="74"  y="15" width="22" height="95" fill="url(#bar-grad)" rx="1"/>
+          <rect x="106" y="30" width="22" height="80" fill="url(#bar-grad)" rx="1" opacity="0.9"/>
+          <rect x="138" y="45" width="22" height="65" fill="url(#bar-grad)" rx="1" opacity="0.75"/>
+          <rect x="170" y="20" width="22" height="90" fill="url(#bar-grad)" rx="1" opacity="0.95"/>
+          <line x1="5" y1="111" x2="195" y2="111" stroke="rgba(0,245,255,0.15)" stroke-width="0.5"/>
+          <text x="21"  y="118" font-family="Share Tech Mono" font-size="5.5" fill="rgba(200,220,240,0.3)" text-anchor="middle">CORP</text>
+          <text x="53"  y="118" font-family="Share Tech Mono" font-size="5.5" fill="rgba(200,220,240,0.3)" text-anchor="middle">MED</text>
+          <text x="85"  y="118" font-family="Share Tech Mono" font-size="5.5" fill="rgba(200,220,240,0.3)" text-anchor="middle">EDU</text>
+          <text x="117" y="118" font-family="Share Tech Mono" font-size="5.5" fill="rgba(200,220,240,0.3)" text-anchor="middle">MIL</text>
+          <text x="149" y="118" font-family="Share Tech Mono" font-size="5.5" fill="rgba(200,220,240,0.3)" text-anchor="middle">CIVIL</text>
+          <text x="181" y="118" font-family="Share Tech Mono" font-size="5.5" fill="rgba(200,220,240,0.3)" text-anchor="middle">GOV</text>
+          <text x="21"  y="22"  font-family="Share Tech Mono" font-size="5" fill="rgba(0,245,255,0.7)"   text-anchor="middle">98%</text>
+          <text x="53"  y="32"  font-family="Share Tech Mono" font-size="5" fill="rgba(0,245,255,0.7)"   text-anchor="middle">88%</text>
+          <text x="85"  y="12"  font-family="Share Tech Mono" font-size="5" fill="rgba(0,245,255,0.7)"   text-anchor="middle">99%</text>
+          <text x="117" y="27"  font-family="Share Tech Mono" font-size="5" fill="rgba(0,245,255,0.7)"   text-anchor="middle">94%</text>
+          <text x="149" y="42"  font-family="Share Tech Mono" font-size="5" fill="rgba(255,0,110,0.8)"   text-anchor="middle">76%</text>
+          <text x="181" y="17"  font-family="Share Tech Mono" font-size="5" fill="rgba(0,245,255,0.7)"   text-anchor="middle">97%</text>
+        </svg>
+        <div class="compliance-note">⚠ CIVIL SECTOR BELOW THRESHOLD — REMEDIATION ACTIVE</div>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="panel">
+        <div class="panel-header"><span>DIRECTOR ACTIONS</span></div>
+        <button class="action-btn" onclick="dashAction(this,'Outreach expansion protocol NS-9941 initiated.')">▶ INITIATE OUTREACH PILOT</button>
+        <button class="action-btn danger-btn" onclick="dashAction(this,'Threat response unit deployed. ETA: 8 seconds.')">▶ DEPLOY RESPONSE UNIT</button>
+        <button class="action-btn" onclick="dashAction(this,'Persona sync update transmitted to 847M identity profiles.')">▶ BROADCAST PERSONA SYNC</button>
+        <button class="action-btn" onclick="dashAction(this,'Memory archive purge scheduled for 0300.')">▶ PURGE MEMORY ARCHIVES</button>
+        <button class="action-btn" onclick="dashAction(this,'Predict package NS-PR-44 activated.')">▶ ACTIVATE PREDICT PACKAGE</button>
+        <div id="action-feedback"></div>
+      </div>
+
+    </div>
+  </div><!-- /dash-content -->
+</div><!-- /dashboard-page -->
+
+<script>
+  // ── BOOT SEQUENCE ──────────────────────────────────────────
+  const bootMessages = [
+    { text: '> Establishing encrypted uplink...', color: 'rgba(0,245,255,0.5)', delay: 0 },
+    { text: '> NetShade Secure Terminal v9.2.1', color: 'rgba(200,220,240,0.4)', delay: 300 },
+    { text: '> Verifying biometric signature...', color: 'rgba(0,245,255,0.5)', delay: 650 },
+    { text: '> <span style="color:var(--neon-yellow)">⚠ VPN LAYER DETECTED — LOGGING</span>', color: '', delay: 900 },
+    { text: '> Identity matrix loaded.', color: 'rgba(0,245,255,0.5)', delay: 1200 },
+    { text: '> <span style="color:var(--neon-green)">■ CONNECTION SECURE</span>', color: '', delay: 1550 },
+  ];
+
+  function runBootSequence() {
+    const container = document.getElementById('boot-lines');
+    container.innerHTML = '';
+    bootMessages.forEach(({ text, color, delay }) => {
+      setTimeout(() => {
+        const line = document.createElement('div');
+        line.innerHTML = text;
+        if (color) line.style.color = color;
+        container.appendChild(line);
+      }, delay);
+    });
+    setTimeout(() => {
+      const fields = document.getElementById('login-fields');
+      fields.style.display = 'block';
+      setTimeout(() => document.getElementById('login-user').focus(), 50);
+    }, 1900);
+  }
+
+  // Start boot on page load
+  runBootSequence();
+
+  // ── LOGIN ──────────────────────────────────────────────────
+  const ADMIN_PASS = 'omnis';
+
+  const wrongMessages = [
+    '⚠ ACCESS DENIED. INCIDENT LOGGED.',
+    '⚠ INVALID CREDENTIALS. TRIBUNAL NOTIFIED.',
+    '⚠ AUTHENTICATION FAILED. STAY WHERE YOU ARE.',
+    '⚠ WRONG KEY. ARREST WARRANT GENERATED.',
+  ];
+  let wrongCount = 0;
+
+  function attemptLogin() {
+    const pass = document.getElementById('login-pass').value.trim().toLowerCase();
+    const btn  = document.getElementById('login-btn');
+    const err  = document.getElementById('login-error');
+
+    btn.textContent = 'Verifying...';
+    btn.style.background = 'rgba(0,245,255,0.4)';
+
+    setTimeout(() => {
+      if (pass === ADMIN_PASS) {
+        btn.textContent = '■ ACCESS GRANTED';
+        btn.style.background = 'var(--neon-green)';
+        err.style.display = 'none';
+        setTimeout(() => {
+          document.getElementById('login-screen').classList.add('hidden');
+          launchDashboard();
+        }, 700);
+      } else {
+        btn.textContent = 'Authenticate';
+        btn.style.background = 'var(--neon-cyan)';
+        err.textContent = wrongMessages[wrongCount % wrongMessages.length];
+        err.style.display = 'block';
+        wrongCount++;
+        const box = document.getElementById('login-box');
+        box.style.animation = 'none';
+        box.offsetHeight;
+        box.style.animation = 'shake 0.4s ease';
+      }
+    }, 800);
+  }
+
+  // shake keyframes
+  const shakeStyle = document.createElement('style');
+  shakeStyle.textContent = '@keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-8px)} 40%{transform:translateX(8px)} 60%{transform:translateX(-6px)} 80%{transform:translateX(6px)} }';
+  document.head.appendChild(shakeStyle);
+
+  // ── DASHBOARD ──────────────────────────────────────────────
+  function launchDashboard() {
+    document.getElementById('dashboard-page').classList.add('open');
+    document.getElementById('dash-date').textContent = '// ' + new Date().toLocaleString('en-US', {
+      month: 'short', day: 'numeric', year: 'numeric',
+      hour: '2-digit', minute: '2-digit'
+    });
+    populateIncidentLog();
+  }
+
+  function logout() {
+    document.getElementById('dashboard-page').classList.remove('open');
+    document.getElementById('login-screen').classList.remove('hidden');
+    document.getElementById('login-pass').value = '';
+    document.getElementById('login-error').style.display = 'none';
+    document.getElementById('login-btn').textContent = 'Authenticate';
+    document.getElementById('login-btn').style.background = 'var(--neon-cyan)';
+    // re-run boot sequence
+    document.getElementById('login-fields').style.display = 'none';
+    runBootSequence();
+  }
+
+  // ── INCIDENT LOG ───────────────────────────────────────────
+  const incidents = [
+    { time:'03:41', level:'CRITICAL', msg:'Resistance cell detected — Sector 7G',     threat:true  },
+    { time:'04:12', level:'WARNING',  msg:'Persona drift spike in CIVIL sector',       threat:false },
+    { time:'05:30', level:'INFO',     msg:'Outreach pilot NS-9938 finalized',          threat:false },
+    { time:'06:01', level:'CRITICAL', msg:'Unauthorized memory access attempt',        threat:true  },
+    { time:'07:15', level:'INFO',     msg:'SynapseLink v4.1 deployed to 12M users',    threat:false },
+    { time:'08:03', level:'WARNING',  msg:'Competitor detected — neutralization pending', threat:true },
+    { time:'08:44', level:'INFO',     msg:'Revenue index updated: ₦214.7B',            threat:false },
+    { time:'09:20', level:'INFO',     msg:'Orbital array sector sweep complete',       threat:false },
+  ];
+
+  function populateIncidentLog() {
+    const log = document.getElementById('incident-log');
+    log.innerHTML = '';
+    [...incidents].reverse().forEach(inc => {
+      const el = document.createElement('div');
+      el.className = 'incident-item' + (inc.threat ? ' threat' : '');
+      const col = inc.level === 'CRITICAL' ? 'var(--neon-pink)'
+                : inc.level === 'WARNING'  ? 'var(--neon-yellow)'
+                : 'rgba(0,245,255,0.5)';
+      el.innerHTML = `<span class="incident-time">${inc.time}</span> <span style="color:${col}">[${inc.level}]</span><br>${inc.msg}`;
+      log.appendChild(el);
+    });
+  }
+
+  function dashAction(btn, msg) {
+    const fb = document.getElementById('action-feedback');
+    fb.style.display = 'block';
+    fb.textContent = '> ' + msg;
+    fb.style.animation = 'none';
+    fb.offsetHeight;
+    fb.style.animation = 'fields-in 0.3s ease';
+
+    const now = new Date();
+    const time = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+    incidents.unshift({ time, level:'INFO', msg, threat:false });
+    populateIncidentLog();
+  }
+</script>
+</body>
+</html>
